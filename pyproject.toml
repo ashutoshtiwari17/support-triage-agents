@@ -7,6 +7,8 @@ dependencies = [
     "google-genai",
     "python-dotenv",
     "pydantic",
+    "fastapi",
+    "uvicorn",
 ]
 
 [dependency-groups]

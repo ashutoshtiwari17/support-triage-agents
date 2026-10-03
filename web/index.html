@@ -1,0 +1,785 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trajectory Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0E1014; --panel: #12151B; --card: #151820; --card-on: #1D212B;
+  --line: #272C36; --line-strong: #3A404C;
+  --text: #ECEAE4; --soft: #D9D6CF; --muted: #A3A9B4;
+  --accent: #F2B456; --on-accent: #1A1408;
+  --good: #7BD88F; --bad: #FF8C7A;
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--sans); font-size: 14px; line-height: 1.5;
+  display: grid; grid-template-rows: auto auto minmax(0, 1fr);
+}
+button, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h2, h3, p { margin: 0; }
+.mono { font-family: var(--mono); }
+.muted { color: var(--muted); }
+.spacer { flex: 1; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+/* ---------- header ---------- */
+.top {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  min-height: 72px; padding: 12px 24px;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand b { display: block; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.brand span { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.seg {
+  display: flex; gap: 4px; padding: 4px; margin-left: 20px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+}
+.seg button {
+  height: 44px; padding: 0 14px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--muted); font-size: 13px; font-weight: 500;
+}
+.seg button[aria-pressed="true"] { background: var(--line); color: var(--text); }
+.seg button:disabled { opacity: 0.45; }
+.model { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.keybtn { height: 44px; display: flex; align-items: center; gap: 8px; }
+.keybtn i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.keybtn.own i { background: var(--good); }
+.keybtn.missing { color: var(--accent); border-color: var(--accent); }
+.keybtn.missing i { background: var(--accent); }
+dialog {
+  width: min(460px, calc(100vw - 32px)); padding: 24px; color: var(--text);
+  background: var(--panel); border: 1px solid var(--line-strong); border-radius: 14px;
+}
+dialog::backdrop { background: rgba(5, 6, 8, 0.7); }
+dialog form { display: flex; flex-direction: column; gap: 14px; }
+dialog h3 { font-size: 17px; font-weight: 600; }
+dialog p { font-size: 13px; color: var(--muted); }
+dialog a { color: var(--accent); }
+dialog label { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+dialog input {
+  height: 44px; padding: 0 12px; font-family: var(--mono); font-size: 13px; color: var(--text);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+}
+dialog .actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px; }
+dialog .actions button { height: 44px; }
+
+/* ---------- pattern bar ---------- */
+.bar {
+  display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+  padding: 16px 24px; border-bottom: 1px solid var(--line);
+}
+.patterns { display: flex; gap: 8px; flex-wrap: wrap; }
+.patterns button {
+  min-height: 56px; padding: 8px 16px; text-align: left;
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+}
+.patterns button b { font-size: 14px; font-weight: 600; }
+.patterns button span { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.patterns button[aria-pressed="true"] { background: var(--card-on); border-color: var(--accent); }
+.patterns button:disabled { opacity: 0.45; }
+.blurb { max-width: 360px; font-size: 13px; color: var(--muted); }
+.stepper { display: flex; align-items: center; gap: 8px; }
+.stepper .icon {
+  width: 44px; height: 44px; display: grid; place-items: center;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+}
+.stepper .icon:disabled { opacity: 0.4; }
+.stepper .count { min-width: 104px; text-align: center; font-family: var(--mono); font-size: 13px; }
+.replay {
+  height: 44px; padding: 0 16px; display: flex; align-items: center; gap: 8px;
+  background: transparent; border: 1px solid var(--accent); border-radius: 10px;
+  color: var(--accent); font-weight: 500;
+}
+.replay:disabled { opacity: 0.4; }
+
+/* ---------- three columns ---------- */
+main { display: grid; grid-template-columns: 380px minmax(0, 1fr) 400px; min-height: 0; }
+main > * { min-height: 0; display: flex; flex-direction: column; }
+.panel-head {
+  flex: none; min-height: 56px; padding: 0 24px;
+  display: flex; align-items: center; gap: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.panel-head h2 { font-size: 14px; font-weight: 600; }
+
+/* ---------- chat ---------- */
+.chat { background: var(--panel); border-right: 1px solid var(--line); }
+.chat .panel-head { padding: 0 16px; gap: 10px; }
+.chat .panel-head label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.chat select {
+  height: 36px; padding: 0 10px; min-width: 0; flex: 1;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px; font-size: 13px; color: var(--text);
+}
+.ghost {
+  height: 36px; padding: 0 12px; background: transparent;
+  border: 1px solid var(--line); border-radius: 8px; font-size: 13px; color: var(--muted); white-space: nowrap;
+}
+.ghost:hover { color: var(--text); border-color: var(--line-strong); }
+.messages { flex: 1; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 14px; }
+.msg { display: flex; flex-direction: column; gap: 6px; max-width: 92%; }
+.msg.user { align-self: flex-end; align-items: flex-end; }
+.msg.assistant { align-self: flex-start; align-items: flex-start; }
+.bubble {
+  padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.user .bubble { background: #3A2E17; border: 1px solid #5C4820; border-bottom-right-radius: 4px; }
+.assistant .bubble { background: var(--card); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+.bubble.failed { border-color: #7A3B33; color: var(--bad); }
+.bubble p + p, .bubble p + ul, .bubble ul + p { margin-top: 8px; }
+.bubble ul { margin: 0; padding-left: 18px; }
+.bubble code, .answer code { font-family: var(--mono); font-size: 0.92em; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+.working { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 1.1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.25; } }
+.runlink {
+  min-height: 32px; padding: 4px 10px; background: transparent;
+  border: 1px solid var(--line); border-radius: 8px;
+  font-family: var(--mono); font-size: 12px; color: var(--muted);
+}
+.runlink:hover { color: var(--text); border-color: var(--line-strong); }
+.runlink[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.starter { margin: auto 0; display: flex; flex-direction: column; gap: 10px; }
+.starter h3 { font-size: 16px; font-weight: 600; }
+.starter p { color: var(--muted); font-size: 13px; margin-bottom: 6px; }
+.starter button {
+  min-height: 44px; padding: 10px 14px; text-align: left;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px; font-size: 13px;
+}
+.starter button:hover { border-color: var(--line-strong); background: var(--card-on); }
+.starter button span { display: block; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.composer { flex: none; display: flex; gap: 8px; align-items: flex-end; padding: 12px 16px 16px; border-top: 1px solid var(--line); }
+.composer textarea {
+  flex: 1; min-height: 44px; max-height: 140px; resize: none; padding: 11px 12px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 10px; line-height: 1.4;
+}
+.composer textarea::placeholder { color: #858C99; }
+.send {
+  height: 44px; padding: 0 18px; border: 0; border-radius: 10px;
+  background: var(--accent); color: var(--on-accent); font-weight: 600;
+}
+.send:disabled { opacity: 0.5; }
+
+/* ---------- trajectory ---------- */
+.traj .summary { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.steps { flex: 1; overflow-y: auto; padding: 24px 28px 40px; }
+.empty { margin: 12vh auto 0; max-width: 380px; text-align: center; color: var(--muted); }
+.empty h3 { color: var(--text); font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.input-card {
+  margin-bottom: 20px; padding: 14px 18px;
+  background: var(--panel); border: 1px dashed var(--line-strong); border-radius: 12px;
+}
+.input-card .who { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.input-card .q { font-size: 15px; font-weight: 500; overflow-wrap: anywhere; }
+.step { display: flex; gap: 14px; transition: opacity 0.25s; }
+.step.later { opacity: 0.28; }
+.step.nested { margin-left: 44px; }
+.rail { flex: none; width: 28px; display: flex; flex-direction: column; align-items: center; }
+.num {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--mono); font-size: 12px;
+  background: var(--card-on); border: 1px solid #2F3440; color: var(--muted);
+}
+.step.current .num { background: var(--c); border-color: var(--c); color: var(--bg); font-weight: 600; }
+.rail i { flex: 1; width: 2px; margin-top: 4px; background: var(--line); }
+.step:last-child .rail i { display: none; }
+.card {
+  flex: 1; min-width: 0; margin-bottom: 12px; padding: 12px 14px; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+}
+.card:hover { border-color: var(--line-strong); }
+.step.selected .card { background: var(--card-on); border-color: var(--c); }
+.card .row { display: flex; align-items: center; gap: 8px; }
+.card .agent { font-size: 12px; color: var(--muted); }
+.card .cost { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.card .body { font-size: 14px; overflow-wrap: anywhere; }
+.card .body p + p, .card .body p + ul, .card .body ul + p { margin-top: 8px; }
+.card .body ul { margin: 0; padding-left: 18px; }
+.card .body code { font-family: var(--mono); font-size: 0.92em; background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+.card .body.code { font-family: var(--mono); font-size: 13px; color: var(--soft); line-height: 1.55; white-space: pre-wrap; }
+.badge {
+  font-family: var(--mono); font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 6px; color: var(--c);
+  background: color-mix(in srgb, var(--c) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 34%, transparent);
+}
+.t-thought, .t-plan { --c: #B9A2FF; }
+.t-action { --c: #F2B456; }
+.t-observation { --c: #5CC8B8; }
+.t-delegate, .t-return { --c: #7DB1FF; }
+.t-draft, .t-revise { --c: #ECEAE4; }
+.t-critique { --c: #FF8C7A; }
+.t-final { --c: #7BD88F; }
+
+/* ---------- side panel ---------- */
+.side { background: var(--panel); border-left: 1px solid var(--line); }
+.tabs { flex: none; min-height: 56px; padding: 0 20px; display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid var(--line); }
+.tabs button {
+  height: 44px; padding: 0 14px; background: transparent; border: 0;
+  border-bottom: 2px solid transparent; color: var(--muted); font-weight: 500;
+}
+.tabs button[aria-pressed="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.side-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+.side-body h3 { font-size: 15px; font-weight: 600; }
+.side-title { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.tile { padding: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.tile small, .field > small { font-size: 12px; color: var(--muted); }
+.tile b { font-family: var(--mono); font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.tile.big b { font-size: 20px; font-weight: 600; }
+.ok { color: var(--good); } .warn { color: var(--accent); } .err { color: var(--bad); }
+.field { display: flex; flex-direction: column; gap: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: var(--mono); font-size: 12px; padding: 4px 8px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; }
+.answer { padding: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.answer p + p, .answer p + ul, .answer ul + p { margin-top: 8px; }
+.answer ul { margin: 0; padding-left: 18px; }
+pre.box {
+  margin: 0; padding: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+  font-family: var(--mono); font-size: 12px; line-height: 1.6; color: var(--soft);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.hint { font-size: 13px; color: var(--muted); }
+
+@media (max-width: 1180px) {
+  html, body { height: auto; }
+  body { display: block; }
+  main { display: block; }
+  .chat, .traj, .side { border: 0; border-bottom: 1px solid var(--line); }
+  .messages { max-height: 60vh; min-height: 280px; }
+  .steps, .side-body { overflow: visible; }
+  .seg { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot { animation: none; }
+  .step { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg width="30" height="30" viewBox="0 0 30 30" fill="none" stroke="#F2B456" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="24" r="3"/><circle cx="15" cy="13" r="2.5"/><circle cx="24" cy="6" r="3"/><path d="M8 21.5 13.4 15M17.2 11.4l4.4-3.7"/></svg>
+    <div><b>Trajectory Lab</b><span>Kestrel Works IT helpdesk</span></div>
+  </div>
+  <nav class="seg" id="frameworks" aria-label="Framework"></nav>
+  <span class="spacer"></span>
+  <span class="model" id="model"></span>
+  <button class="ghost keybtn" id="keybtn"><i aria-hidden="true"></i><span id="keylabel">API key</span></button>
+</header>
+
+<dialog id="keydialog" aria-labelledby="keytitle">
+  <form id="keyform" method="dialog">
+    <h3 id="keytitle">Use your own Gemini API key</h3>
+    <p>Each question you send then runs on your key and your quota. The key is sent with the question, used for that one run, and not stored or logged on the server. This browser tab remembers it until you close the tab.</p>
+    <label>Gemini API key
+      <input id="keyinput" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key">
+    </label>
+    <p><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Get a free key from Google AI Studio</a></p>
+    <div class="actions">
+      <button class="ghost" type="button" id="keyclear">Remove key</button>
+      <button class="ghost" value="cancel">Cancel</button>
+      <button class="send" value="save">Save key</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="bar">
+  <div class="patterns" id="patterns" aria-label="Agent pattern"></div>
+  <p class="blurb" id="blurb"></p>
+  <span class="spacer"></span>
+  <div class="stepper">
+    <button class="icon" id="prev" aria-label="Previous step"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
+    <span class="count" id="count">No run yet</span>
+    <button class="icon" id="next" aria-label="Next step"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg></button>
+    <button class="replay" id="replay"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 8A5.5 5.5 0 1 0 4.2 4"/><path d="M2.5 1.8V5h3.2"/></svg><span id="replay-label">Replay</span></button>
+  </div>
+</div>
+
+<main>
+  <section class="chat" aria-label="Chat">
+    <div class="panel-head">
+      <label for="employee">Chatting as</label>
+      <select id="employee"></select>
+      <button class="ghost" id="newchat">New chat</button>
+    </div>
+    <div class="messages" id="messages" aria-live="polite"></div>
+    <form class="composer" id="composer">
+      <label class="sr" for="input">Message</label>
+      <textarea id="input" rows="1" maxlength="2000" placeholder="Describe your IT problem"></textarea>
+      <button class="send" id="send" type="submit">Send</button>
+    </form>
+  </section>
+
+  <section class="traj" aria-label="Trajectory">
+    <div class="panel-head"><h2>Trajectory</h2><span class="summary" id="summary"></span></div>
+    <div class="steps" id="steps"></div>
+  </section>
+
+  <aside class="side" aria-label="Run details">
+    <div class="tabs">
+      <button id="tab-result" aria-pressed="true">Result</button>
+      <button id="tab-step" aria-pressed="false">Step inspector</button>
+    </div>
+    <div class="side-body" id="side"></div>
+  </aside>
+</main>
+
+<script>
+/* ------------------------------------------------------------------
+   One page, no build step. It talks to two endpoints in server.py:
+     GET  /api/meta   -> employees, which (framework, pattern) pairs exist
+     POST /api/chat   -> a stream of JSON lines: run, event..., done | error
+   Everything on screen is drawn from `state` by the render* functions.
+------------------------------------------------------------------- */
+
+const FRAMEWORKS = [
+  { id: 'gemini_sdk', label: 'Gemini SDK' },
+  { id: 'adk', label: 'ADK' },
+  { id: 'langgraph', label: 'LangGraph' },
+  { id: 'crewai', label: 'CrewAI' },
+];
+const PATTERNS = [
+  { id: 'react', label: 'ReAct', sub: 'single agent',
+    blurb: 'One agent loops Thought, Action, Observation until it can answer. Cheapest path, but nothing checks the answer.' },
+  { id: 'reflect', label: 'ReAct + Reflection', sub: 'draft → critique → revise',
+    blurb: 'Same loop, then a critic checks the draft against the evidence and forces a revision until it passes.' },
+  { id: 'hierarchical', label: 'Hierarchical', sub: 'supervisor + specialists',
+    blurb: 'A supervisor splits the question into jobs, hands each to a specialist agent, and merges what they return.' },
+];
+const STARTERS = [
+  { text: 'My VPN keeps disconnecting', as: 'E001' },
+  { text: "I can't log in", as: 'E002' },
+  { text: 'My VPN stopped working', as: 'E003' },
+  { text: 'How many leave days do I have?', as: 'E001' },
+];
+const STEP_TYPES = ['thought', 'plan', 'action', 'observation', 'delegate', 'return', 'draft', 'revise', 'critique', 'final'];
+
+const state = {
+  meta: { employees: [], runners: [], model: '', requires_key: false, server_has_key: true },
+  apiKey: loadKey(),     // the visitor's own Gemini key, kept in this tab only
+  framework: 'gemini_sdk',
+  mode: 'react',
+  employeeId: 'E001',
+  sessionId: null,
+  messages: [],          // {role, text, runId, pending, error}
+  runs: {},              // runId -> {run, question, employeeId, events, answer, metrics, status}
+  selectedRunId: null,
+  cursor: null,          // null = follow the latest step; a number = stepping / replaying
+  selectedStep: null,
+  tab: 'result',
+  busy: false,
+  playing: false,
+};
+let replayTimer = null;
+
+/* The key lives in sessionStorage: this tab only, gone when the tab closes. */
+function loadKey() { try { return sessionStorage.getItem('gemini_key') || ''; } catch { return ''; } }
+function saveKey(key) {
+  state.apiKey = key;
+  try { key ? sessionStorage.setItem('gemini_key', key) : sessionStorage.removeItem('gemini_key'); } catch { /* private mode: keep it in memory */ }
+}
+const keyMissing = () => !state.apiKey && (state.meta.requires_key || !state.meta.server_has_key);
+function openKeyDialog() { $('keyinput').value = state.apiKey; $('keydialog').showModal(); $('keyinput').focus(); }
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/* Model output is untrusted text: escape first, then allow bold, code and bullet lists. */
+function inline(s) {
+  return esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+function md(text) {
+  const out = [];
+  let list = null, para = [];
+  const flush = () => {
+    if (para.length) { out.push('<p>' + para.join('<br>') + '</p>'); para = []; }
+    if (list) { out.push('<ul>' + list.join('') + '</ul>'); list = null; }
+  };
+  for (const raw of String(text ?? '').split('\n')) {
+    const line = raw.trimEnd();
+    const bullet = line.match(/^\s*[*-]\s+(.*)$/);
+    if (bullet) { if (para.length) flush(); (list ||= []).push('<li>' + inline(bullet[1]) + '</li>'); }
+    else if (!line.trim()) flush();
+    else { if (list) flush(); para.push(inline(line)); }
+  }
+  flush();
+  return out.join('');
+}
+function pretty(content) {
+  try { return JSON.stringify(JSON.parse(content), null, 2); } catch { return content; }
+}
+const seconds = (ms) => (ms < 100 ? ms + ' ms' : (ms / 1000).toFixed(1) + 's');
+const available = (framework, mode) => state.meta.runners.some((r) => r.framework === framework && r.mode === mode);
+const employee = (id) => state.meta.employees.find((e) => e.id === id);
+const currentRun = () => state.runs[state.selectedRunId] || null;
+
+function costOf(e) {
+  const tokens = (e.tokens_in || 0) + (e.tokens_out || 0);
+  const parts = [];
+  if (tokens) parts.push(tokens.toLocaleString() + ' tok');
+  if (e.latency_ms != null) parts.push(seconds(e.latency_ms));
+  return parts.join(' · ') || (e.type === 'action' ? 'tool call' : '');
+}
+function metricsOf(run) {
+  if (run.metrics) return run.metrics;       // final numbers from the server
+  return {                                   // live numbers while the run is in progress
+    steps: run.events.length,
+    llm_calls: run.events.filter((e) => e.tokens_in != null || e.type === 'final').length,
+    tool_calls: run.events.filter((e) => e.type === 'action').length,
+    tokens: run.events.reduce((n, e) => n + (e.tokens_in || 0) + (e.tokens_out || 0), 0),
+    latency_ms: null,
+  };
+}
+
+/* ---------------- rendering ---------------- */
+
+function renderControls() {
+  $('frameworks').innerHTML = FRAMEWORKS.map((f) => {
+    const built = state.meta.runners.some((r) => r.framework === f.id);
+    return `<button data-framework="${f.id}" aria-pressed="${state.framework === f.id}" ${built ? '' : 'disabled title="Not built yet"'}>${f.label}</button>`;
+  }).join('');
+  $('patterns').innerHTML = PATTERNS.map((p) => {
+    const built = available(state.framework, p.id);
+    return `<button data-mode="${p.id}" aria-pressed="${state.mode === p.id}" ${built ? '' : 'disabled title="Not built yet"'}>
+      <b>${p.label}</b><span>${built ? p.sub : 'not built yet'}</span></button>`;
+  }).join('');
+  $('blurb').textContent = PATTERNS.find((p) => p.id === state.mode).blurb;
+  $('model').textContent = state.meta.model || '';
+  $('keybtn').className = 'ghost keybtn' + (state.apiKey ? ' own' : keyMissing() ? ' missing' : '');
+  $('keylabel').textContent = state.apiKey ? 'Using your API key' : keyMissing() ? 'Add your API key' : 'Using the server\'s API key';
+  $('employee').innerHTML = state.meta.employees.map((e) =>
+    `<option value="${esc(e.id)}" ${e.id === state.employeeId ? 'selected' : ''}>${esc(e.name)} · ${esc(e.id)}</option>`).join('');
+}
+
+function renderChat() {
+  const box = $('messages');
+  if (!state.messages.length) {
+    box.innerHTML = `<div class="starter">
+      <h3>Ask the IT helpdesk</h3>
+      <p>Pick a question to see how the agent handles it, or type your own below.</p>
+      ${STARTERS.map((s, i) => `<button data-starter="${i}">${esc(s.text)}<span>as ${esc(employee(s.as)?.name || s.as)}</span></button>`).join('')}
+    </div>`;
+  } else {
+    box.innerHTML = state.messages.map((m) => {
+      if (m.role === 'user') return `<div class="msg user"><div class="bubble">${esc(m.text)}</div></div>`;
+      const run = state.runs[m.runId];
+      let bubble;
+      if (m.pending) {
+        const last = run?.events.at(-1);
+        const doing = last ? `Step ${last.step}: ${last.tool_name || last.type}` : 'Starting';
+        bubble = `<div class="bubble working"><span class="dot"></span>${esc(doing)}</div>`;
+      } else if (m.error) {
+        bubble = `<div class="bubble failed">The run failed. ${esc(m.error)}</div>`;
+      } else {
+        bubble = `<div class="bubble">${md(m.text)}</div>`;
+      }
+      let link = '';
+      if (run) {
+        const mt = metricsOf(run);
+        const label = `Trajectory · ${mt.steps} steps` + (mt.latency_ms != null ? ` · ${seconds(mt.latency_ms)}` : '');
+        link = `<button class="runlink" data-run="${esc(m.runId)}" aria-pressed="${state.selectedRunId === m.runId}">${label}</button>`;
+      }
+      return `<div class="msg assistant">${bubble}${link}</div>`;
+    }).join('');
+    box.scrollTop = box.scrollHeight;
+  }
+  $('send').disabled = state.busy;
+  $('send').textContent = state.busy ? 'Working' : 'Send';
+}
+
+function renderTrajectory() {
+  const run = currentRun();
+  const box = $('steps');
+  const total = run ? run.events.length : 0;
+  const cursor = state.cursor ?? total - 1;
+
+  $('summary').textContent = run
+    ? `${total} steps · ${run.events.filter((e) => e.type === 'action').length} tool calls · ${new Set(run.events.filter((e) => e.agent !== 'tool').map((e) => e.agent)).size || 1} agent`
+    : '';
+  $('count').textContent = total ? `Step ${cursor + 1} / ${total}` : 'No run yet';
+  $('prev').disabled = !total || cursor <= 0;
+  $('next').disabled = !total || cursor >= total - 1;
+  $('replay').disabled = !total || state.busy;
+  $('replay-label').textContent = state.playing ? 'Playing' : 'Replay';
+
+  if (!run) {
+    box.innerHTML = `<div class="empty"><h3>No run selected</h3><p>Send a message. Each step the agent takes appears here as it happens.</p></div>`;
+    return;
+  }
+  const who = employee(run.employeeId);
+  const selected = state.selectedStep ?? cursor;
+  box.innerHTML = `<div class="input-card">
+      <div class="who">Input · ${esc(run.run.run_id)} · ${esc(who ? who.name : run.employeeId)} (${esc(run.employeeId)})</div>
+      <div class="q">${esc(run.question)}</div>
+    </div>` + run.events.map((e, i) => {
+      const type = STEP_TYPES.includes(e.type) ? e.type : 'thought';
+      const code = type === 'action' || type === 'observation';
+      const cls = ['step', 't-' + type, i > cursor ? 'later' : '', i === cursor ? 'current' : '',
+                   i === selected && state.tab === 'step' ? 'selected' : '', e.parent_agent ? 'nested' : ''].join(' ');
+      return `<div class="${cls}">
+        <div class="rail"><span class="num">${e.step}</span><i></i></div>
+        <div class="card" data-step="${i}" role="button" tabindex="0" aria-label="Inspect step ${e.step}, ${type}">
+          <div class="row"><span class="badge">${type}</span><span class="agent">${esc(e.agent)}</span><span class="cost">${esc(costOf(e))}</span></div>
+          <div class="body ${code ? 'code' : ''}">${code ? esc(e.content) : md(e.content)}</div>
+        </div>
+      </div>`;
+    }).join('') + (run.status === 'running' && state.cursor === null
+      ? `<div class="working" style="padding-left: 42px"><span class="dot"></span>Working</div>` : '')
+      + (run.status === 'failed' ? `<p class="hint" style="padding-left: 42px; color: var(--bad)">The run stopped here because of an error. The chat shows the message.</p>` : '');
+  if (state.cursor === null) box.scrollTop = box.scrollHeight;
+}
+
+function renderSide() {
+  $('tab-result').setAttribute('aria-pressed', state.tab === 'result');
+  $('tab-step').setAttribute('aria-pressed', state.tab === 'step');
+  const run = currentRun();
+  const box = $('side');
+  if (!run) {
+    box.innerHTML = `<p class="hint">Run details appear here: the answer, which policies it cited, and what the run cost.</p>`;
+    return;
+  }
+  if (state.tab === 'result') {
+    const mt = metricsOf(run);
+    const who = employee(run.employeeId);
+    const outcome = { running: ['Running', 'warn'], answered: ['Answered', 'ok'], limit: ['Step limit hit', 'warn'], failed: ['Failed', 'err'] }[run.status];
+    const cited = [...new Set((run.answer || '').match(/\b[A-Z]{2,4}-\d{3}\b/g) || [])];
+    const tools = {};
+    run.events.filter((e) => e.type === 'action').forEach((e) => { tools[e.tool_name] = (tools[e.tool_name] || 0) + 1; });
+    box.innerHTML = `
+      <div class="side-title"><h3>Run</h3><span class="mono muted" style="font-size:12px">${esc(run.run.run_id)}</span></div>
+      <div class="grid2">
+        <div class="tile"><small>Pattern</small><b>${esc(run.run.pattern)}</b></div>
+        <div class="tile"><small>Framework</small><b>${esc(run.run.framework)}</b></div>
+        <div class="tile"><small>Employee</small><b>${esc(who ? who.name : run.employeeId)}</b></div>
+        <div class="tile"><small>Outcome</small><b class="${outcome[1]}">${outcome[0]}</b></div>
+      </div>
+      <div class="field"><small>Policies cited in the answer</small>
+        <div class="chips">${cited.length ? cited.map((c) => `<span class="chip">${esc(c)}</span>`).join('') : '<span class="hint">None</span>'}</div></div>
+      <div class="field"><small>Tools used</small>
+        <div class="chips">${Object.keys(tools).length ? Object.entries(tools).map(([n, c]) => `<span class="chip">${esc(n)}${c > 1 ? ' × ' + c : ''}</span>`).join('') : '<span class="hint">None</span>'}</div></div>
+      <div class="field"><small>Answer</small>
+        <div class="answer">${run.answer ? md(run.answer) : '<span class="hint">' + (run.status === 'failed' ? 'No answer. The run failed.' : 'Not ready yet.') + '</span>'}</div></div>
+      <div class="field"><small>Run cost</small>
+        <div class="grid2">
+          <div class="tile big"><b>${mt.llm_calls}</b><small>Model calls</small></div>
+          <div class="tile big"><b>${mt.tool_calls}</b><small>Tool calls</small></div>
+          <div class="tile big"><b>${mt.tokens.toLocaleString()}</b><small>Tokens</small></div>
+          <div class="tile big"><b>${mt.latency_ms != null ? seconds(mt.latency_ms) : '…'}</b><small>Total time</small></div>
+        </div></div>`;
+    return;
+  }
+  const total = run.events.length;
+  const e = run.events[state.selectedStep ?? state.cursor ?? total - 1];
+  if (!e) { box.innerHTML = `<p class="hint">No steps yet.</p>`; return; }
+  const type = STEP_TYPES.includes(e.type) ? e.type : 'thought';
+  box.innerHTML = `
+    <div class="side-title t-${type}"><h3>Step ${e.step} of ${total}</h3><span class="badge">${type}</span></div>
+    <div class="grid2">
+      <div class="tile"><small>Agent</small><b>${esc(e.agent)}</b></div>
+      <div class="tile"><small>Time</small><b>${e.latency_ms != null ? seconds(e.latency_ms) : 'n/a'}</b></div>
+      <div class="tile"><small>Tokens in</small><b>${e.tokens_in != null ? e.tokens_in.toLocaleString() : 'n/a'}</b></div>
+      <div class="tile"><small>Tokens out</small><b>${e.tokens_out != null ? e.tokens_out.toLocaleString() : 'n/a'}</b></div>
+    </div>
+    ${e.tool_name ? `<div class="field"><small>Tool</small><div class="chips"><span class="chip">${esc(e.tool_name)}</span></div></div>` : ''}
+    ${e.tool_args ? `<div class="field"><small>Arguments the model chose</small><pre class="box">${esc(JSON.stringify(e.tool_args, null, 2))}</pre></div>` : ''}
+    <div class="field"><small>${type === 'observation' ? 'What the tool returned' : type === 'action' ? 'Call' : 'What the model wrote'}</small>
+      <pre class="box">${esc(type === 'observation' ? pretty(e.content) : e.content)}</pre></div>
+    <p class="hint">Select any step in the trajectory, or use the step buttons, to inspect it.</p>`;
+}
+
+function render() { renderControls(); renderChat(); renderTrajectory(); renderSide(); }
+
+/* ---------------- actions ---------------- */
+
+function stopReplay() {
+  if (replayTimer) clearInterval(replayTimer);
+  replayTimer = null; state.playing = false;
+}
+function selectRun(runId) {
+  stopReplay();
+  state.selectedRunId = runId; state.cursor = null; state.selectedStep = null; state.tab = 'result';
+}
+function resetChat() {
+  stopReplay();
+  Object.assign(state, { sessionId: null, messages: [], runs: {}, selectedRunId: null, cursor: null, selectedStep: null, tab: 'result' });
+}
+function stepTo(i) {
+  const run = currentRun(); if (!run) return;
+  stopReplay();
+  state.cursor = Math.max(0, Math.min(run.events.length - 1, i));
+  state.selectedStep = state.cursor; state.tab = 'step';
+  render();
+}
+function replay() {
+  const run = currentRun(); if (!run || !run.events.length) return;
+  stopReplay();
+  state.playing = true; state.cursor = 0; state.selectedStep = 0; state.tab = 'step';
+  render();
+  replayTimer = setInterval(() => {
+    if (state.cursor >= run.events.length - 1) {
+      stopReplay(); state.cursor = null; state.selectedStep = null; state.tab = 'result';
+    } else { state.cursor += 1; state.selectedStep = state.cursor; }
+    render();
+  }, 900);
+}
+
+function handle(msg, pending, question) {
+  if (msg.kind === 'run') {
+    state.sessionId = msg.session_id;
+    state.runs[msg.run.run_id] = { run: msg.run, question, employeeId: state.employeeId, events: [], answer: null, metrics: null, status: 'running' };
+    pending.runId = msg.run.run_id;
+    selectRun(msg.run.run_id);
+  } else if (msg.kind === 'event') {
+    state.runs[msg.event.run_id]?.events.push(msg.event);
+  } else if (msg.kind === 'done') {
+    const run = state.runs[pending.runId];
+    run.answer = msg.answer; run.metrics = msg.metrics;
+    run.status = msg.answer.startsWith('Stopped: step limit') ? 'limit' : 'answered';
+    pending.pending = false; pending.text = msg.answer;
+  } else if (msg.kind === 'error') {
+    const run = state.runs[pending.runId]; if (run) run.status = 'failed';
+    pending.pending = false; pending.error = msg.message;
+  }
+  renderChat(); renderTrajectory(); renderSide();   // leave the header controls alone mid-run
+}
+
+async function send(text) {
+  text = text.trim();
+  if (!text || state.busy) return;
+  if (keyMissing()) { $('input').value = text; return openKeyDialog(); }
+  stopReplay();
+  state.busy = true;
+  state.messages.push({ role: 'user', text });
+  const pending = { role: 'assistant', pending: true, runId: null, text: '' };
+  state.messages.push(pending);
+  render();
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(state.apiKey ? { 'X-Gemini-Key': state.apiKey } : {}) },
+      body: JSON.stringify({ message: text, employee_id: state.employeeId, session_id: state.sessionId, framework: state.framework, mode: state.mode }),
+    });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(typeof detail.detail === 'string' ? detail.detail : `The server answered ${res.status}.`);
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let cut;
+      while ((cut = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, cut).trim();
+        buffer = buffer.slice(cut + 1);
+        if (line) handle(JSON.parse(line), pending, text);
+      }
+    }
+  } catch (err) {
+    pending.error = err.message || String(err);
+  } finally {
+    if (pending.pending) {
+      pending.pending = false;
+      pending.error ||= 'The connection closed before the agent finished. Check that the server is still running.';
+      const run = state.runs[pending.runId]; if (run) run.status = 'failed';
+    }
+    state.busy = false;
+    render();
+    $('input').focus();
+  }
+}
+
+/* ---------------- wiring ---------------- */
+
+$('composer').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const input = $('input');
+  const text = input.value;
+  if (!text.trim() || state.busy) return;
+  input.value = ''; input.style.height = '';
+  send(text);
+});
+$('input').addEventListener('keydown', (ev) => {
+  if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); $('composer').requestSubmit(); }
+});
+$('input').addEventListener('input', (ev) => {
+  ev.target.style.height = ''; ev.target.style.height = Math.min(ev.target.scrollHeight, 140) + 'px';
+});
+$('messages').addEventListener('click', (ev) => {
+  const starter = ev.target.closest('[data-starter]');
+  if (starter) {
+    const s = STARTERS[+starter.dataset.starter];
+    if (employee(s.as)) state.employeeId = s.as;
+    return send(s.text);
+  }
+  const link = ev.target.closest('[data-run]');
+  if (link) { selectRun(link.dataset.run); render(); }
+});
+$('steps').addEventListener('click', (ev) => {
+  const card = ev.target.closest('[data-step]');
+  if (!card) return;
+  stopReplay();
+  state.selectedStep = +card.dataset.step; state.tab = 'step';
+  render();
+});
+$('steps').addEventListener('keydown', (ev) => {
+  const card = ev.target.closest('[data-step]');
+  if (card && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); card.click(); }
+});
+$('frameworks').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-framework]'); if (!b || b.disabled) return;
+  state.framework = b.dataset.framework;
+  if (!available(state.framework, state.mode)) state.mode = state.meta.runners.find((r) => r.framework === state.framework).mode;
+  render();
+});
+$('patterns').addEventListener('click', (ev) => {
+  const b = ev.target.closest('[data-mode]'); if (!b || b.disabled) return;
+  state.mode = b.dataset.mode; render();
+});
+$('employee').addEventListener('change', (ev) => { state.employeeId = ev.target.value; resetChat(); render(); });
+$('newchat').addEventListener('click', () => { if (state.busy) return; resetChat(); render(); $('input').focus(); });
+$('tab-result').addEventListener('click', () => { state.tab = 'result'; render(); });
+$('tab-step').addEventListener('click', () => { state.tab = 'step'; render(); });
+$('prev').addEventListener('click', () => { const r = currentRun(); if (r) stepTo((state.cursor ?? r.events.length - 1) - 1); });
+$('next').addEventListener('click', () => { const r = currentRun(); if (r) stepTo((state.cursor ?? r.events.length - 1) + 1); });
+$('replay').addEventListener('click', replay);
+$('keybtn').addEventListener('click', openKeyDialog);
+$('keyclear').addEventListener('click', () => { saveKey(''); $('keydialog').close(); render(); });
+$('keydialog').addEventListener('close', () => {
+  if ($('keydialog').returnValue === 'save') { saveKey($('keyinput').value.trim()); render(); }
+  $('keyinput').value = '';
+});
+
+(async function start() {
+  try {
+    const res = await fetch('/api/meta');
+    state.meta = await res.json();
+    if (!employee(state.employeeId) && state.meta.employees[0]) state.employeeId = state.meta.employees[0].id;
+    render();
+  } catch {
+    render();
+    $('side').innerHTML = `<p class="hint">Could not reach the server. Start it with <code>uvicorn server:app --reload</code> and reload this page.</p>`;
+  }
+})();
+</script>
+</body>
+</html>
