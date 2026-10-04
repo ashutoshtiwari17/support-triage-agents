@@ -219,3 +219,6 @@ __marimo__/
 
 .DS_Store
 runs/
+
+# Google Cloud CLI was installed into this folder by accident; keep it out of git and uploads
+y/

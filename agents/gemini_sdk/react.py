@@ -11,11 +11,6 @@ from core.tools import get_employee, get_it_account, search_policies
 from core.trace import Recorder
 
 load_dotenv()
-client = genai.Client(
-    http_options=types.HttpOptions(
-        retry_options=types.HttpRetryOptions(attempts=4, initial_delay=2.0)
-    )
-)
 MODEL = os.environ["GEMINI_MODEL"]
 TOOLS = {f.__name__: f for f in (get_employee, get_it_account, search_policies)}
 AGENT = "it_agent"
@@ -27,21 +22,37 @@ Before each tool call, write one short sentence saying why you need it.
 Answer only from tool results and cite policy IDs. If the tools don't cover it, say so."""
 
 
+def make_client(api_key: str | None = None) -> genai.Client:
+    """A Gemini client. With no key given, the SDK reads GEMINI_API_KEY from the environment."""
+    return genai.Client(
+        api_key=api_key,
+        http_options=types.HttpOptions(
+            retry_options=types.HttpRetryOptions(attempts=4, initial_delay=2.0)
+        ),
+    )
+
+
 def run(
     question: str,
     employee_id: str = "E001",
     max_steps: int = 6,
     history: list[dict] | None = None,
     recorder: Recorder | None = None,
+    api_key: str | None = None,
 ) -> str:
-    """Answer one message. `history` is earlier turns as {"role": "user"|"assistant", "text": ...}."""
+    """Answer one message.
+
+    `history` is earlier turns as {"role": "user"|"assistant", "text": ...}.
+    `api_key` lets a visitor run on their own Gemini key; it is used for this run only.
+    """
     rec = recorder or Recorder(Pattern.REACT, Framework.GEMINI_SDK)
-    answer = _loop(question, employee_id, max_steps, history or [], rec)
+    answer = _loop(make_client(api_key), question, employee_id, max_steps, history or [], rec)
     rec.finish(question, answer)
     return answer
 
 
-def _loop(question: str, employee_id: str, max_steps: int, history: list[dict], rec: Recorder) -> str:
+def _loop(client: genai.Client, question: str, employee_id: str, max_steps: int,
+          history: list[dict], rec: Recorder) -> str:
     config = types.GenerateContentConfig(
         system_instruction=SYSTEM.format(employee_id=employee_id),
         tools=list(TOOLS.values()),

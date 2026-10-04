@@ -14,13 +14,14 @@ ENV UV_COMPILE_BYTECODE=1 \
 COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-dev
 
-COPY agents ./agents
-COPY core ./core
-COPY web ./web
-COPY server.py main.py ./
-
-# Run as an unprivileged user; it only needs to write run files
-RUN useradd --create-home app && mkdir -p /app/runs && chown -R app /app/runs
+# The app runs as an unprivileged user. --chown makes that user the owner of
+# the code, so it can read the files whatever permissions they had on the
+# machine that built the image.
+RUN useradd --create-home app && mkdir -p /app/runs && chown app:app /app/runs
+COPY --chown=app:app agents ./agents
+COPY --chown=app:app core ./core
+COPY --chown=app:app web ./web
+COPY --chown=app:app server.py main.py ./
 USER app
 
 # Cloud Run tells the container which port to listen on through $PORT
