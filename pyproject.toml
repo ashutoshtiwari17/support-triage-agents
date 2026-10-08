@@ -13,6 +13,9 @@ dependencies = [
 
 [dependency-groups]
 dev = ["pytest"]
+ingest = [
+    "pdfplumber>=0.11.10",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

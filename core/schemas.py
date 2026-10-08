@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from enum import StrEnum
+import enum
 from pydantic import BaseModel, Field, model_validator
 
 
@@ -78,8 +79,13 @@ class StepType(StrEnum):
     REVISE = "revise"
     FINAL = "final"
 
+class EmploymentType(StrEnum):
+    EMPLOYEE = "employee"
+    CONTRACTOR = "contractor"
 
 # ================= Models =================
+
+
 
 class Employee(BaseModel):
     id: str = Field(pattern=r"^E\d{3}$")          # e.g. E042
@@ -87,6 +93,7 @@ class Employee(BaseModel):
     email: str
     team: str                                     # e.g. "Engineering"
     location: str
+    employment_type: EmploymentType
     manager_id: str | None = None
 
 
