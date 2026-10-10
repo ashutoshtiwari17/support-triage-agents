@@ -7,30 +7,28 @@ from google import genai
 from google.genai import types
 
 from core.schemas import Framework, Pattern, StepType
-from core.tools import get_employee, get_it_account, search_policies
+from core.tools import tools_for
 from core.trace import Recorder
 
 load_dotenv()
 MODEL = os.environ["GEMINI_MODEL"]
-TOOLS = {f.__name__: f for f in (get_employee, get_it_account, search_policies)}
-AGENT = "it_agent"
+AGENT = "helpdesk_agent"
 
-SYSTEM = """You are the IT helpdesk agent for Kestrel Works.
-You are talking to employee {employee_id}.
+SYSTEM = """You are the HR, Finance and IT helpdesk agent for Kestrel Works.
 Look things up with the tools. Never guess account details or policy.
+The tools already know who you are talking to; you never need an employee ID.
 Before each tool call, write one short sentence saying why you need it.
-Answer only from tool results and cite policy IDs. If the tools don't cover it, say so."""
+Answer only from tool results and cite the policy ID and section, e.g. (HR-001, section 2).
+If the tools don't cover it, say so. Policy search is already limited to this person's employment 
+type; you don't need their profile to search."""
 
 
 def make_client(api_key: str | None = None) -> genai.Client:
-    """A Gemini client. With no key given, the SDK reads GEMINI_API_KEY from the environment."""
-    return genai.Client(
-        api_key=api_key,
-        http_options=types.HttpOptions(
-            retry_options=types.HttpRetryOptions(attempts=4, initial_delay=2.0)
-        ),
-    )
-
+    """Vertex AI by default (from env vars); AI Studio when a visitor brings their own key."""
+    http = types.HttpOptions(retry_options=types.HttpRetryOptions(attempts=4, initial_delay=2.0))
+    if api_key:
+        return genai.Client(vertexai=False, api_key=api_key, http_options=http)
+    return genai.Client(http_options=http)
 
 def run(
     question: str,
@@ -53,9 +51,11 @@ def run(
 
 def _loop(client: genai.Client, question: str, employee_id: str, max_steps: int,
           history: list[dict], rec: Recorder) -> str:
+    # Tools are built per run and bound to this person; the model never passes an identity.
+    tools = {f.__name__: f for f in tools_for(employee_id, client)}
     config = types.GenerateContentConfig(
-        system_instruction=SYSTEM.format(employee_id=employee_id),
-        tools=list(TOOLS.values()),
+        system_instruction=SYSTEM,
+        tools=list(tools.values()),
         # We run the loop ourselves; without this the SDK would do it silently.
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
     )
@@ -107,7 +107,7 @@ def _loop(client: genai.Client, question: str, employee_id: str, max_steps: int,
 
             tool_started = time.perf_counter()
             try:
-                result = TOOLS[call.name](**args)
+                result = tools[call.name](**args)
             except Exception as e:                  # bad tool name or bad args from the model
                 result = {"error": str(e)}
             rec.emit(StepType.OBSERVATION, "tool", json.dumps(result, default=str),
