@@ -50,7 +50,9 @@ def run(
 
 
 def _loop(client: genai.Client, question: str, employee_id: str, max_steps: int,
-          history: list[dict], rec: Recorder) -> str:
+          history: list[dict], rec: Recorder, final_type: StepType = StepType.FINAL) -> str:
+    """The ReAct loop. `final_type` is FINAL normally; the Reflection agent passes DRAFT,
+    because for it this answer is only a first version to be checked."""
     # Tools are built per run and bound to this person; the model never passes an identity.
     tools = {f.__name__: f for f in tools_for(employee_id, client)}
     config = types.GenerateContentConfig(
@@ -80,7 +82,7 @@ def _loop(client: genai.Client, question: str, employee_id: str, max_steps: int,
 
         if not response.candidates or not response.candidates[0].content:
             answer = "The model returned no answer for this message."
-            rec.emit(StepType.FINAL, AGENT, answer, **cost)
+            rec.emit(final_type, AGENT, answer, **cost)
             return answer
 
         reply = response.candidates[0].content
@@ -90,7 +92,7 @@ def _loop(client: genai.Client, question: str, employee_id: str, max_steps: int,
         calls = response.function_calls
         if not calls:                               # no tool requested = final answer
             answer = text or "The model returned no answer for this message."
-            rec.emit(StepType.FINAL, AGENT, answer, **cost)
+            rec.emit(final_type, AGENT, answer, **cost)
             return answer
 
         if text:
@@ -117,5 +119,5 @@ def _loop(client: genai.Client, question: str, employee_id: str, max_steps: int,
         contents.append(types.Content(role="user", parts=results))
 
     answer = "Stopped: step limit reached."
-    rec.emit(StepType.FINAL, AGENT, answer)
+    rec.emit(final_type, AGENT, answer)
     return answer

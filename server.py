@@ -63,7 +63,10 @@ def meta():
         "runners": [{"framework": f, "mode": m} for f, m in RUNNERS],
         "model": os.environ.get("GEMINI_MODEL", ""),
         "requires_key": REQUIRE_USER_KEY,
-        "server_has_key": bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")),
+        # True when the server can call a model by itself: through Vertex AI (its own
+        # identity, no key) or through an API key of its own.
+        "server_has_key": os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("1", "true")
+                          or bool(os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")),
     }
 
 

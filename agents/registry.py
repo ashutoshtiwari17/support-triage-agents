@@ -9,7 +9,7 @@ import importlib
 
 RUNNERS = {
     ("gemini_sdk", "react"): "agents.gemini_sdk.react",
-    # ("gemini_sdk", "reflect"): "agents.gemini_sdk.reflect",
+    ("gemini_sdk", "reflect"): "agents.gemini_sdk.reflect",
     # ("adk", "react"): "agents.adk_app.react",
 }
 
