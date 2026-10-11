@@ -37,6 +37,7 @@ WEB_DIR = Path(__file__).parent / "web"
 MAX_TURNS_KEPT = 20                      # earlier turns sent back to the model
 REQUIRE_USER_KEY = os.environ.get("REQUIRE_USER_KEY", "").lower() in ("1", "true", "yes")
 KEY_SHAPE = re.compile(r"[A-Za-z0-9_\-]{20,200}")
+USES_VERTEX = os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("1", "true")
 
 app = FastAPI(title="Kestrel Works helpdesk")
 SESSIONS: dict[str, list[dict]] = {}     # session_id -> [{"role", "text"}, ...]
@@ -80,6 +81,9 @@ def explain(error: Exception, user_key: str | None) -> str:
     if code == 429:
         return (f"The Gemini quota for {whose} API key is used up for now. "
                 "Try again later, or use a key from a project with billing turned on.")
+    if not user_key and USES_VERTEX and (code in (401, 403) or "PERMISSION_DENIED" in text):
+        return ("The server's service account is not allowed to use Vertex AI or Firestore. "
+                "Grant it roles/aiplatform.user and roles/datastore.user.")
     if code in (401, 403) or "API key not valid" in text or "API_KEY_INVALID" in text:
         return f"Gemini rejected {whose} API key. Check the key and try again."
     if code == 503:
@@ -128,7 +132,9 @@ def chat(req: ChatRequest, x_gemini_key: str | None = Header(default=None)):
             outbox.put({"kind": "done", "answer": answer, "metrics": recorder.metrics()})
         except Exception as e:
             message = explain(e, user_key)
-            log.error("run %s failed: %s", recorder.run.run_id, message)
+            raw = str(e).replace(user_key, "***") if user_key else str(e)
+            log.error("run %s failed: %s | %s: %s", recorder.run.run_id, message,
+                      type(e).__name__, raw[:500])
             outbox.put({"kind": "error", "message": message})
         finally:
             outbox.put(None)
